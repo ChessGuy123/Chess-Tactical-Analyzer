@@ -1900,6 +1900,13 @@
                 }
             }
 
+            // Make functions globally accessible (moved to end)
+            window.resetGame = resetGame;
+            window.undoMove = undoMove;
+            window.getHint = getHint;
+            window.toggleGameMode = toggleGameMode;
+            window.showGameAccuracy = showGameAccuracy;
+
             // Initial setup
             updateEvaluation();
             addAnalysis('Welcome to Chess Analyzer!');
