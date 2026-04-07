@@ -472,29 +472,30 @@
             
             .square {
                 width: 60px;
-                height: 60px;
-                font-size: 48px;
-            }
-            
-            .eval-bar {
-                height: 400px;
-                width: 25px;
-            }
-            
-            .eval-labels {
-                height: 400px;
-                font-size: 0.9rem;
             }
             
             .header h1 {
                 font-size: 2.8rem;
             }
         }
+
+        .debug {
+            background: rgba(255, 0, 0, 0.1);
+            border: 1px solid #ff4444;
+            padding: 8px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-size: 12px;
+            color: #ff6666;
+            text-align: center;
+            font-family: monospace;
+        }
     </style>
 </head>
 <body>
     <div class="header">
         <h1>CHESS ANALYZER</h1>
+        <div id="debug" class="debug">DEBUG: Initializing...</div>
         <p>Professional Chess Analysis Engine</p>
     </div>
 
@@ -533,11 +534,11 @@
                 </div>
 
                 <div class="controls">
-                    <button onclick="resetGame()">New Game</button>
-                    <button onclick="undoMove()">Undo Move</button>
-                    <button onclick="getHint()">Get Hint</button>
-                    <button onclick="toggleGameMode()" id="modeButton">Play vs Engine</button>
-                    <button onclick="showGameAccuracy()" id="accuracyButton">Game Accuracy</button>
+                    <button onclick="testButton('newGame')">New Game</button>
+                    <button onclick="testButton('undoMove')">Undo Move</button>
+                    <button onclick="testButton('getHint')">Get Hint</button>
+                    <button onclick="testButton('toggleGameMode')" id="modeButton">Play vs Engine</button>
+                    <button onclick="testButton('showGameAccuracy')" id="accuracyButton">Game Accuracy</button>
                 </div>
 
             </div>
@@ -660,7 +661,40 @@
             window.toggleGameMode = toggleGameMode;
             window.showGameAccuracy = showGameAccuracy;
 
+            // Debug function
+            function debug(message) {
+                console.log(message);
+                const debugEl = document.getElementById('debug');
+                if (debugEl) {
+                    debugEl.textContent = 'DEBUG: ' + message;
+                }
+            }
+
+            // Button testing function
+            function testButton(action) {
+                debug('Button clicked: ' + action);
+                
+                switch(action) {
+                    case 'newGame':
+                        resetGame();
+                        break;
+                    case 'undoMove':
+                        undoMove();
+                        break;
+                    case 'getHint':
+                        getHint();
+                        break;
+                    case 'toggleGameMode':
+                        toggleGameMode();
+                        break;
+                    case 'showGameAccuracy':
+                        showGameAccuracy();
+                        break;
+                }
+            }
+
             function draw() {
+                debug('Drawing board...');
                 const board = game.board();
                 const boardEl = document.getElementById('board');
                 let html = '';
@@ -733,7 +767,7 @@
                             promotion: 'q'
                         };
                         
-                        console.log('Test move:', testMove);
+                        debug('Trying to move from ' + selected + ' to ' + square);
                         
                         // Check if move is in legal moves
                         const legalMoves = game.moves({verbose: true});
@@ -741,18 +775,20 @@
                             move.from === selected && move.to === square
                         );
                         
-                        console.log('Legal moves:', legalMoves);
-                        console.log('Is move legal?', isLegal);
+                        debug('Legal moves found: ' + legalMoves.length);
+                        debug('Is move legal? ' + isLegal);
                         
                         if (isLegal) {
                             const move = game.move(testMove);
-                            console.log('Move result:', move);
+                            debug('Move result: ' + (move ? move.san : 'null'));
                             
                             if (move) {
                                 moveHistory.push(move);
                                 selected = null;
                                 clearHighlights();
                                 draw();
+                                
+                                debug('Move successful: ' + move.san);
                                 
                                 // Simple analysis for now (tactical analysis disabled)
                                 addAnalysis(`Move: ${move.san}`);
@@ -766,12 +802,14 @@
                             } else if (piece && piece.color === game.turn()) {
                                 // Select new piece
                                 selected = square;
+                                debug('Selected new piece at ' + square);
                                 highlightSquare(square);
                                 draw();
                                 updateStatus(`Selected ${square}`);
                             } else {
                                 // Invalid move
                                 selected = null;
+                                debug('Invalid move - selection cleared');
                                 draw();
                                 updateStatus('Invalid move');
                             }
@@ -1751,6 +1789,7 @@
 
             function resetGame() {
                 try {
+                    debug('New Game button pressed');
                     console.log('Resetting game');
                     game.reset();
                     moveHistory = [];
@@ -1769,10 +1808,10 @@
                         'New game started! Analysis mode active.';
                     
                     analysisContent.innerHTML = `<div class="move-comment">${welcomeMessage}</div>`;
+                    debug('Game reset complete');
                     evaluatePosition();
-                    
-                    console.log('Game reset complete');
                 } catch (error) {
+                    debug('Error in resetGame: ' + error.message);
                     console.error('Error in resetGame:', error);
                     addAnalysis('Error resetting game: ' + error.message);
                 }
@@ -1780,6 +1819,7 @@
 
             function undoMove() {
                 try {
+                    debug('Undo Move button pressed');
                     console.log('Undoing move');
                     if (game.undo()) {
                         moveHistory.pop();
@@ -1792,6 +1832,7 @@
                         updateStatus('No moves to undo');
                     }
                 } catch (error) {
+                    debug('Error in undoMove: ' + error.message);
                     console.error('Error in undoMove:', error);
                     addAnalysis('Error undoing move: ' + error.message);
                 }
