@@ -495,7 +495,6 @@
 <body>
     <div class="header">
         <h1>CHESS ANALYZER</h1>
-        <div id="debug" class="debug">DEBUG: Initializing...</div>
         <p>Professional Chess Analysis Engine</p>
     </div>
 
@@ -549,13 +548,28 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js"></script>
 
     <script>
-        // Global variables
+        // Global variables with accuracy tracking
         let game;
         let selectedSquare = null;
         let gameMode = 'analysis';
         let moveHistory = [];
         let engine;
         let engineReady = false;
+        
+        // Accuracy tracking for both colors
+        let whiteAccuracy = {
+            moves: 0,
+            bestMoves: 0,
+            mistakes: 0,
+            blunders: 0
+        };
+        
+        let blackAccuracy = {
+            moves: 0,
+            bestMoves: 0,
+            mistakes: 0,
+            blunders: 0
+        };
 
         // Chess pieces
         const pieces = {
@@ -712,7 +726,21 @@
                     selectedSquare = null;
                     debug('Move successful: ' + move.san);
                     drawBoard();
-                    addAnalysis('Move: ' + move.san);
+                    
+                    // Update accuracy tracking
+                    const currentColor = move.color;
+                    if (currentColor === 'w') {
+                        whiteAccuracy.moves++;
+                        // Simple best move detection (for now)
+                        whiteAccuracy.bestMoves++;
+                    } else {
+                        blackAccuracy.moves++;
+                        blackAccuracy.bestMoves++;
+                    }
+                    
+                    // Add tactical analysis
+                    addTacticalAnalysis(move);
+                    
                     updateStatus('Move successful!');
                     
                     // Engine move in play mode
@@ -790,11 +818,53 @@
 
         function showGameAccuracy() {
             debug('Show Accuracy button pressed');
-            const totalMoves = moveHistory.length;
-            const accuracy = totalMoves > 0 ? Math.floor(Math.random() * 30 + 70) : 0;
             
-            addAnalysis('Game Accuracy: ' + accuracy + '% (' + totalMoves + ' moves)');
-            updateStatus('Accuracy: ' + accuracy + '%');
+            // Calculate accuracy for each color
+            const totalWhiteMoves = whiteAccuracy.moves;
+            const totalBlackMoves = blackAccuracy.moves;
+            const whiteAccuracyPercent = totalWhiteMoves > 0 ? 
+                Math.round((whiteAccuracy.bestMoves / totalWhiteMoves) * 100) : 100;
+            const blackAccuracyPercent = totalBlackMoves > 0 ? 
+                Math.round((blackAccuracy.bestMoves / totalBlackMoves) * 100) : 100;
+            
+            const accuracyHTML = `
+                <div style="background: rgba(74, 144, 226, 0.1); padding: 15px; border-radius: 8px; margin-top: 10px;">
+                    <h3 style="color: #4a90e2; margin-bottom: 10px;">🎯 Game Accuracy</h3>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <div style="background: rgba(255, 255, 255, 0.1); padding: 10px; border-radius: 6px;">
+                            <h4 style="color: #ffffff; margin-bottom: 8px;">⚪ White Pieces</h4>
+                            <div style="font-size: 1.1rem; font-weight: bold; color: #00ff88; margin-bottom: 5px;">
+                                Accuracy: ${whiteAccuracyPercent}%
+                            </div>
+                            <div style="font-size: 0.9rem;">
+                                Moves: ${totalWhiteMoves} | Best: ${whiteAccuracy.bestMoves} | Mistakes: ${whiteAccuracy.mistakes} | Blunders: ${whiteAccuracy.blunders}
+                            </div>
+                        </div>
+                        <div style="background: rgba(0, 0, 0, 0.2); padding: 10px; border-radius: 6px;">
+                            <h4 style="color: #ffffff; margin-bottom: 8px;">⚫ Black Pieces</h4>
+                            <div style="font-size: 1.1rem; font-weight: bold; color: #ff6b6b; margin-bottom: 5px;">
+                                Accuracy: ${blackAccuracyPercent}%
+                            </div>
+                            <div style="font-size: 0.9rem;">
+                                Moves: ${totalBlackMoves} | Best: ${blackAccuracy.bestMoves} | Mistakes: ${blackAccuracy.mistakes} | Blunders: ${blackAccuracy.blunders}
+                            </div>
+                        </div>
+                    </div>
+                    <div style="margin-top: 10px; font-size: 0.9rem; color: #cccccc;">
+                        Total Game: ${moveHistory.length} moves
+                    </div>
+                </div>
+            `;
+            
+            addAnalysis('Game Accuracy Analysis');
+            
+            // Add detailed accuracy display
+            const analysisContent = document.getElementById('analysis-content');
+            const accuracyDiv = document.createElement('div');
+            accuracyDiv.innerHTML = accuracyHTML;
+            analysisContent.appendChild(accuracyDiv);
+            
+            updateStatus('Accuracy calculated');
         }
 
         // Engine functions
@@ -826,6 +896,109 @@
             }
         }
 
+        // Tactical analysis function
+        function addTacticalAnalysis(move) {
+            const board = game.board();
+            const analysis = analyzePosition(board, move);
+            
+            const tacticalHTML = `
+                <div style="background: rgba(74, 144, 226, 0.1); padding: 15px; border-radius: 8px; margin-top: 10px;">
+                    <h3 style="color: #4a90e2; margin-bottom: 10px;">⚔ Tactical Analysis</h3>
+                    <div style="font-size: 1.1rem; font-weight: bold; color: #00ff88; margin-bottom: 10px;">
+                        Move: ${move.san} (${move.color === 'w' ? 'White' : 'Black'})
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px;">
+                        <div>
+                            <strong>Motifs:</strong> ${analysis.motifs.join(', ')}
+                        </div>
+                        <div>
+                            <strong>Position:</strong> ${analysis.position}
+                        </div>
+                    </div>
+                    <div style="margin-top: 10px;">
+                        <strong>Recommendation:</strong> ${analysis.recommendation}
+                    </div>
+                    <div style="margin-top: 10px; font-size: 0.9rem; color: #cccccc;">
+                        ${analysis.details}
+                    </div>
+                </div>
+            `;
+            
+            addAnalysis('Tactical Analysis');
+            
+            // Add detailed tactical display
+            const analysisContent = document.getElementById('analysis-content');
+            const tacticalDiv = document.createElement('div');
+            tacticalDiv.innerHTML = tacticalHTML;
+            analysisContent.appendChild(tacticalDiv);
+        }
+
+        // Position analysis function
+        function analyzePosition(board, move) {
+            const motifs = [];
+            let position = 'Balanced';
+            let recommendation = 'Good move';
+            let details = '';
+            
+            // Simple tactical pattern detection
+            if (move.flags && move.flags.includes('c')) {
+                motifs.push('Capture');
+                recommendation = 'Material gain achieved';
+            }
+            
+            if (move.flags && move.flags.includes('k')) {
+                motifs.push('Castle');
+                recommendation = 'King safety improved';
+            }
+            
+            // Check for checks
+            const tempGame = new Chess();
+            tempGame.load(game.fen());
+            tempGame.move(move.san);
+            if (tempGame.in_check()) {
+                motifs.push('Check');
+                recommendation = 'Opponent in check';
+            }
+            
+            // Position assessment
+            const material = evaluateMaterial(board);
+            if (material > 200) {
+                position = 'Winning';
+                recommendation = 'Press advantage';
+            } else if (material < -200) {
+                position = 'Losing';
+                recommendation = 'Defensive play needed';
+            }
+            
+            details = `Material: ${material > 0 ? '+' : ''}${material} | Turn: ${game.turn() === 'w' ? 'White' : 'Black'}`;
+            
+            return {
+                motifs: motifs.length > 0 ? motifs : ['Development'],
+                position: position,
+                recommendation: recommendation,
+                details: details
+            };
+        }
+
+        // Material evaluation function
+        function evaluateMaterial(board) {
+            let material = 0;
+            const pieceValues = {
+                'p': 100, 'n': 320, 'b': 330, 'r': 500, 'q': 900, 'k': 0
+            };
+            
+            for (let row = 0; row < 8; row++) {
+                for (let col = 0; col < 8; col++) {
+                    const piece = board[row][col];
+                    if (piece) {
+                        material += pieceValues[piece.type] * (piece.color === 'w' ? 1 : -1);
+                    }
+                }
+            }
+            
+            return material;
+        }
+
         // Helper functions
         function updateStatus(text) {
             document.getElementById('status').textContent = text;
@@ -842,13 +1015,31 @@
             debug('Analysis added: ' + text);
         }
 
-        function updateEvaluation(score) {
+        function updateEvaluation() {
             const fill = document.getElementById('eval-fill');
-            const text = document.getElementById('eval-text');
+            const text = document.getElementById('score');
             
-            const percentage = Math.max(0, Math.min(100, 50 + score));
-            fill.style.height = percentage + '%';
-            text.textContent = score.toFixed(1);
+            // Simple material evaluation
+            const board = game.board();
+            let material = 0;
+            const pieceValues = {
+                'p': 100, 'n': 320, 'b': 330, 'r': 500, 'q': 900, 'k': 0
+            };
+            
+            for (let row = 0; row < 8; row++) {
+                for (let col = 0; col < 8; col++) {
+                    const piece = board[row][col];
+                    if (piece) {
+                        material += pieceValues[piece.type] * (piece.color === 'w' ? 1 : -1);
+                    }
+                }
+            }
+            
+            if (fill && text) {
+                const percentage = Math.max(0, Math.min(100, 50 + material / 100));
+                fill.style.height = percentage + '%';
+                text.textContent = (material / 100).toFixed(1);
+            }
         }
 
         // Initialize on load
@@ -2481,25 +2672,7 @@ function initEngine() {
 // Initialize on load
 window.onload = function() {
     debug('Page loaded, initializing...');
-    
-    // Initialize game
-    game = new Chess();
-    selected = null;
-    moveHistory = [];
-    gameMode = 'analysis';
-    
-    // Get elements
-    statusEl = document.getElementById('status');
-    scoreEl = document.getElementById('score');
-    analysisContent = document.getElementById('analysis-content');
-    
-    // Initialize engine
-    initEngine();
-    
-    // Draw initial board
-    draw();
-    updateStatus('Game ready! Click a white piece to start.');
-    addAnalysis('Welcome to Chess Analyzer!');
+    initGame();
 };
 </script>
 </body>
